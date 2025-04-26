@@ -1,0 +1,44 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # Application Service ('app')
+  app:
+    build: .                    # Build image from Dockerfile in current directory
+    container_name: nusatrip_ai # Custom container name
+    ports:
+      - "5000:5000"             # Map host port 5000 to container port 5000
+    volumes:
+      - .:/app                  # Mount host code into container (for development)
+    env_file:
+      - .env                    # Load environment variables from .env file
+    depends_on:
+      db:
+        condition: service_healthy # Wait for db service to be healthy before starting app
+    restart: unless-stopped       # Restart policy
+
+  # Database Service ('db')
+  db:
+    image: postgres:17-alpine   # Specify PostgreSQL version
+    container_name: postgres      # Custom container name
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ # Persist database data
+    environment:
+      # Read credentials from host's .env file
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"             # Optional: Expose DB port to host
+    healthcheck:
+      # Check if PostgreSQL is ready to accept connections
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped       # Restart policy
+
+# Named Volume for PostgreSQL data persistence
+volumes:
+  postgres_data:
+    driver: local
