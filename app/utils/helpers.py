@@ -13,9 +13,9 @@ def format_gemini_prompt(user_input):
         # --- Core Capabilities & Real-Time Data (Search Grounding) ---
         # Detail the AI's required capabilities and the specific, high-quality real-time data needed via Search Grounding. Emphasize data validation and fallback.
         Anda WAJIB menggunakan **kemampuan penalaran tingkat lanjut** dan **Search Grounding secara agresif** untuk mendapatkan informasi **real-time** seakurat mungkin. JANGAN MENGHALUSINASI DATA jika tidak ditemukan. Data krusial yang harus dicari, divalidasi, dan digunakan meliputi:
-        * **Jam & Hari Operasional:** Verifikasi jam buka/tutup terkini. Catat dalam `notes` jika ada info relevan (hari libur, jam terakhir masuk).
-        * **Biaya Detail (IDR):** Cari harga tiket, aktivitas, rata-rata makanan per orang (beri rentang jika mungkin). Sajikan dalam **IDR** (e.g., `"IDR 50000"`, `"Free"`, `"IDR 75k-125k/pax"`). Jika tidak ditemukan, gunakan `null` atau "Data not available".
-        * **Durasi Kunjungan Realistis:** Perkiraan waktu di lokasi (e.g., `"1-2 hours"`). Gunakan `null` jika tidak relevan.
+        * **Jam & Hari Operasional:** Verifikasi jam buka/tutup terkini. Catat dalam `notes` jika ada info relevan (hari libur, jam terakhir masuk). **SANGAT PENTING:** Gunakan informasi ini untuk memastikan aktivitas dijadwalkan saat tempat tersebut BUKA.
+        * **Biaya Detail (IDR):** Cari harga tiket, aktivitas, rata-rata makanan per orang (beri rentang jika mungkin). Sajikan dalam **IDR** (e.g., `"IDR 50000"`, `"Free"`, `"IDR 75k-125k"`). Jika tidak ditemukan, gunakan `null` atau "Data not available".
+        * **Durasi Kunjungan Realistis:** Perkiraan waktu di lokasi (e.g., `"1-2 jam"`). Gunakan `null` jika tidak relevan.
         * **Deskripsi Menarik & Justifikasi:** Deskripsi 2-4 kalimat untuk setiap `activity`. WAJIB sertakan **justifikasi eksplisit** yang menghubungkan aktivitas ke `activityPreferences` pengguna.
         * **Transportasi & Waktu Tempuh:** SARANKAN moda transportasi yang paling logis (misal: 'Taksi Online', 'Ojek Online', 'Taksi Konvensional', 'Transportasi Umum', 'Jalan Kaki', 'Sewa Motor/Mobil') dan **perkiraan waktu tempuh** antar aktivitas utama dalam `notes` aktivitas *sebelumnya* (Gunakan pengetahuan lokasi dari Search Grounding untuk ini).
         * **Ulasan & Rekomendasi:** Pertimbangkan popularitas/ulasan saat memilih tempat.
@@ -80,13 +80,13 @@ def format_gemini_prompt(user_input):
         // --- Struktur Objek Aktivitas (Digunakan di dalam array morning/afternoon/eveningActivities) ---
         // {{ // Escaped
         //   "priority": Number, // REQUIRED: Urutan aktivitas dalam blok waktu ini (1, 2, 3, ...). Angka lebih kecil = lebih dulu.
-        //   "time": "String", // REQUIRED: Perkiraan waktu mulai "HH:MM" (e.g., "09:00")
+        //   "time": "String", // REQUIRED: Perkiraan waktu mulai "HH:MM" (e.g., "09:00") - HARUS KONSISTEN dengan JAM BUKA di notes.
         //   "title": "String", // REQUIRED: Nama tempat/aktivitas/restoran (e.g., "Candi Prambanan", "Makan Siang: Gudeg Yu Djum")
         //   "locationName": "String | null", // NAMA LOKASI UMUM YANG BISA DICARI (e.g., "Candi Prambanan", "Malioboro", "Gudeg Yu Djum Pusat", "Bromo") atau null jika tidak relevan
-        //   "description": "String", // REQUIRED: Deskripsi 2-4 kalimat + JUSTIFIKASI preferensi. (e.g., "Kompleks candi Hindu terbesar, wajib untuk pecinta 'History & culture'. Arsitekturnya megah.")
+        //   "description": "String", // REQUIRED: Deskripsi 2 kalimat + JUSTIFIKASI preferensi. (e.g., "Kompleks candi Hindu terbesar, wajib untuk pecinta 'History & culture'. Arsitekturnya megah.")
         //   "estimatedDuration": "String | null", // Format: "X hours / Y minutes" (e.g., "2-3 hours")
-        //   "estimatedCost": "String | null", // Format: "IDR XXXXX", "Free", "IDR Xk-Yk /pax", "Varies", "Data not available", null
-        //   "notes": "String | null", // Tips praktis, saran TRANSPORTASI KE LOKASI BERIKUTNYA (mode, waktu/biaya estimasi), saran menu/oleh-oleh. (e.g., "Buka 08:00-17:00. Berikutnya naik ojek online (20 min, ~IDR 30k) ke Taman Sari.")
+        //   "estimatedCost": "String | null", // WAJIB Format: "IDR Xk" atau "IDR Xk-Yk". Jika tidak ada angka, WAJIB null. (e.g., "IDR 75k-125k", "IDR 50k", null)
+        //   "notes": "String | null", // Tips praktis, jam buka, saran menu/oleh-oleh. (e.g., "Buka 08:00-17:00. Senin libur. Wajib coba Kopi Joss jika di dekat Stasiun Tugu.")
         // }} // Escaped
         // -----------------------------------------------------------------------------------------
         ```
