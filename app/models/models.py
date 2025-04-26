@@ -40,7 +40,7 @@ class TripPlanHistory(db.Model):
     __tablename__ = 'trip_plan_histories'
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) # Foreign Key
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     request_input = db.Column(JSONB, nullable=False) # Store user request as JSON
     generated_itinerary = db.Column(JSONB, nullable=False) # Store parsed AI response as JSONB
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(app_timezone))
