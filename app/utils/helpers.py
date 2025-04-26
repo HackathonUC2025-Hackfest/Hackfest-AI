@@ -1,6 +1,6 @@
 # app/utils/helpers.py
 from flask import jsonify
-from datetime import date # Import date type for checking
+from datetime import date
 
 def format_gemini_prompt(user_input):
     """Formats the detailed prompt for the Gemini API based on user input."""
@@ -110,7 +110,6 @@ def format_gemini_prompt(user_input):
     # --- End of Prompt Template ---
 
     # Prepare data, converting dates to strings for the prompt if they exist
-    # (Logic for preparing format_data remains the same)
     format_data = {
         'travel_destination': user_input.get('travel_destination', 'N/A'),
         'start_date': user_input.get('start_date').isoformat() if isinstance(user_input.get('start_date'), date) else str(user_input.get('start_date', 'Not specified')),

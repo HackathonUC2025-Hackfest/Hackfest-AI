@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 def create_plan(user_input):
     """Create Trip Plan Service Logic"""
     try:
-        # 1. Format the prompt using validated user input
+        # Format the prompt using validated user input
         prompt = format_gemini_prompt(user_input)
         logger.info("Formatted prompt for AI plan generation.")
 
-        # 2. Call the Gemini service to generate the itinerary
+        # Call the Gemini service to generate the itinerary
         itinerary = generate_text_from_gemini(prompt)
         logger.info("AI itinerary generated successfully.")
         return itinerary

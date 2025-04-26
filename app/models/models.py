@@ -9,7 +9,6 @@ import pytz
 app_timezone = pytz.timezone('Asia/Jakarta') # Example: WIB
 
 class User(db.Model):
-    # ... (kode User tetap sama) ...
     """User Model"""
     __tablename__ = 'users'
 
@@ -17,6 +16,8 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(app_timezone))
+    is_premium = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    premium_expired_at = db.Column(db.DateTime(timezone=True), nullable=True, default=None)
 
     # Relationship to TripPlanHistory
     trip_plan_histories = db.relationship('TripPlanHistory', back_populates='user', lazy=True, cascade="all, delete-orphan")

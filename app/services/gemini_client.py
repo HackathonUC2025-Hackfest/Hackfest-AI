@@ -1,6 +1,6 @@
 # app/services/gemini_client.py
 import google.generativeai as genai
-from flask import current_app # Access Flask app context for config
+from flask import current_app
 import logging
 
 # Logger
@@ -24,8 +24,6 @@ def generate_text_from_gemini(prompt_text):
     """Send prompt to configured Gemini model and return generated text."""
     try:
         # Ensure Gemini is configured
-        # if not genai.is_configured():
-        #      configure_gemini()
         configure_gemini()
 
         # Get model name from config, use default if not set

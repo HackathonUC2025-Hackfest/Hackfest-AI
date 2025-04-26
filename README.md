@@ -87,7 +87,7 @@ Memudahkan pengguna mengeksplorasi destinasi dengan informasi lengkap, lokasi, d
         *(Anda mungkin perlu menjalankan ini lagi jika mengubah model nanti)*
     * Terapkan script migrasi ke database untuk membuat tabel:
         ```bash
-        docker-compose run --rm app flask db upgrade
+        docker compose run --rm app flask db upgrade
         ```
         *(Jalankan ini setiap kali ada script migrasi baru)*
 

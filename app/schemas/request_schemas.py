@@ -1,6 +1,5 @@
 # app/schemas/request_schemas.py
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
-from datetime import date
 
 class UserRegisterSchema(Schema):
     """User Registration Request Schema"""
