@@ -1,0 +1,16 @@
+# Environment Variables
+.env
+
+# IDE Files (JetBrains - PyCharm, IntelliJ, etc.)
+.idea/
+
+# Python Cache and Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python Virtual Environment Folders
+venv/
+env/
+.venv/
