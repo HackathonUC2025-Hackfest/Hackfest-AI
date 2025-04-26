@@ -1,8 +1,8 @@
-"""Generate initial migration script
+"""Initial database schema creation
 
-Revision ID: a485a88f663c
+Revision ID: 9a9e318c5414
 Revises: 
-Create Date: 2025-04-26 08:22:58.779843
+Create Date: 2025-04-26 14:09:06.904708
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'a485a88f663c'
+revision = '9a9e318c5414'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -30,7 +30,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('request_input', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('generated_itinerary', sa.Text(), nullable=False),
+    sa.Column('generated_itinerary', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('destination_city', sa.String(length=100), nullable=True),
     sa.Column('start_date', sa.Date(), nullable=True),

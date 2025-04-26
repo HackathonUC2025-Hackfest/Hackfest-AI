@@ -9,6 +9,7 @@ import pytz
 app_timezone = pytz.timezone('Asia/Jakarta') # Example: WIB
 
 class User(db.Model):
+    # ... (kode User tetap sama) ...
     """User Model"""
     __tablename__ = 'users'
 
@@ -31,6 +32,7 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+
 class TripPlanHistory(db.Model):
     """Trip History Model"""
     __tablename__ = 'trip_plan_histories'
@@ -38,7 +40,7 @@ class TripPlanHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) # Foreign Key
     request_input = db.Column(JSONB, nullable=False) # Store user request as JSON
-    generated_itinerary = db.Column(db.Text, nullable=False) # Store AI response text
+    generated_itinerary = db.Column(JSONB, nullable=False) # Store parsed AI response as JSONB
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(app_timezone))
     destination_city = db.Column(db.String(100)) # Indexed field example
     start_date = db.Column(db.Date) # Store dates if provided

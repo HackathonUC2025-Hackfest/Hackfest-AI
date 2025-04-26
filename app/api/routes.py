@@ -129,19 +129,18 @@ def plan_trip():
             request_input_for_db['start_date'] = request_input_for_db['start_date'].isoformat()
         if isinstance(request_input_for_db.get('end_date'), date):
             request_input_for_db['end_date'] = request_input_for_db['end_date'].isoformat()
-        # --------------------------------------------------------------
 
         # Save to DB (save raw AI string)
         history_entry = TripPlanHistory(
             user_id=current_user_id,
             request_input=request_input_for_db,
-            generated_itinerary=raw_itinerary_string, # Save original string
+            generated_itinerary=parsed_itinerary,
             destination_city=user_input.get('travel_destination'),
             start_date=user_input.get('start_date'),
             end_date=user_input.get('end_date')
         )
         db.session.add(history_entry)
-        db.session.commit()
+        db.session.commit()  # Commit changes to DB
         logger.info(f"Trip plan saved to history for user {current_user_id}, history ID {history_entry.id}.")
 
         # --- SUCCESS RESPONSE: Return the parsed itinerary directly ---
@@ -163,7 +162,7 @@ def plan_trip():
 
 # --- History Retrieval Route (Keep using api_response for consistency here) ---
 
-@api_bp.route('/history', methods=['GET'])
+@api_bp.route('/trip-plan-history', methods=['GET'])
 @jwt_required()
 def get_history():
     """Get User Trip History Route (Last 10)"""
