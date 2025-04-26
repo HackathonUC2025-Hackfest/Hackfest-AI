@@ -100,7 +100,7 @@ Memudahkan pengguna mengeksplorasi destinasi dengan informasi lengkap, lokasi, d
 * `POST /api/auth/register`: Registrasi pengguna baru.
 * `POST /api/auth/login`: Login pengguna, mengembalikan JWT access token.
 * `POST /api/planning`: (Memerlukan Autentikasi JWT) Membuat rencana perjalanan baru berdasarkan input JSON. Mengembalikan JSON itinerary.
-* `GET /api/history`: (Memerlukan Autentikasi JWT) Mengambil 10 riwayat rencana perjalanan terakhir pengguna.
+* `GET /api/trip-plan-history`: (Memerlukan Autentikasi JWT) Mengambil 10 riwayat rencana perjalanan terakhir pengguna.
 
 ## Lisensi
 
