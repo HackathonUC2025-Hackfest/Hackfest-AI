@@ -1,16 +1,16 @@
 # app/api/routes.py
-from flask import request, current_app, jsonify
+from flask import request, jsonify # Import jsonify explicitly
 from . import api_bp # Application Blueprint
 from app.models.models import db, User, TripPlanHistory # Database Models
-from app.utils.helpers import api_response # Response Helper
+from app.utils.helpers import api_response # Keep for other routes/potential errors
 from app.services.smart_trip_planner_ai import create_plan # AI Service
 from app.schemas.request_schemas import UserRegisterSchema, UserLoginSchema, TripPlanRequestSchema # Request Schemas
 from app.schemas.response_schemas import TripPlanHistorySchema, AuthTokenSchema # Response Schemas
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity # JWT Utilities
-from werkzeug.security import check_password_hash # Password Hashing
 from marshmallow import ValidationError # Validation Error Class
 import logging
-from datetime import date # Date object type
+import json # Import json for parsing
+from datetime import date # Import date type
 
 # Logger instance
 logger = logging.getLogger(__name__)
@@ -19,150 +19,164 @@ logger = logging.getLogger(__name__)
 user_register_schema = UserRegisterSchema()
 user_login_schema = UserLoginSchema()
 trip_plan_schema = TripPlanRequestSchema()
-trip_history_schema = TripPlanHistorySchema(many=True) # Schema for lists of history objects
+trip_history_schema = TripPlanHistorySchema(many=True)
 auth_token_schema = AuthTokenSchema()
 
-# --- Authentication Routes ---
+# --- Authentication Routes (Keep using api_response for consistency here) ---
 
 @api_bp.route('/auth/register', methods=['POST'])
 def register_user():
     """Register New User Route"""
     json_data = request.get_json()
+    # Use api_response for input validation error
     if not json_data: return api_response(message="No input data provided.", status_code=400, success=False)
 
-    try: # Validate request body via schema
+    try:
         data = user_register_schema.load(json_data)
     except ValidationError as err:
-        # Return validation errors if schema validation fails
+        # Use api_response for schema validation error
         return api_response(data=err.messages, message="Input validation failed.", status_code=400, success=False)
 
     username = data['username']
-    # Check if username already exists in the database
     if User.query.filter_by(username=username).first():
-        return api_response(message="Username already exists.", status_code=409, success=False) # Return 409 Conflict
+        # Use api_response for conflict error
+        return api_response(message="Username already exists.", status_code=409, success=False)
 
-    # Create new User object
     new_user = User(username=username)
     new_user.set_password(data['password'])
-    try: # Attempt to save the new user to the database
+    try:
         db.session.add(new_user)
         db.session.commit()
         logger.info(f"User '{username}' registered successfully.")
-        return api_response(message="User created successfully.", status_code=201) # Return 201 Created
-    except Exception as e: # Handle potential database errors during commit
-        db.session.rollback() # Rollback transaction on error
+        # Use api_response for success message
+        return api_response(message="User created successfully.", status_code=201)
+    except Exception as e:
+        db.session.rollback()
         logger.error(f"Database error during user registration: {e}", exc_info=True)
+        # Use api_response for internal server error
         return api_response(message="Failed to register user due to a server error.", status_code=500, success=False)
 
 @api_bp.route('/auth/login', methods=['POST'])
 def login_user():
     """Login User Route"""
     json_data = request.get_json()
+    # Use api_response for input validation error
     if not json_data: return api_response(message="No input data provided.", status_code=400, success=False)
 
-    try: # Validate request body via schema
+    try:
         data = user_login_schema.load(json_data)
     except ValidationError as err:
+        # Use api_response for schema validation error
         return api_response(data=err.messages, message="Input validation failed.", status_code=400, success=False)
 
     username = data['username']
     password = data['password']
-    # Find user by username
     user = User.query.filter_by(username=username).first()
 
-    # Verify password and create JWT if valid
     if user and user.check_password(password):
-        # Convert user ID to string for JWT identity
         access_token = create_access_token(identity=str(user.id))
         logger.info(f"User '{username}' logged in successfully.")
-        # Serialize the token response using schema
         token_data = auth_token_schema.dump({"access_token": access_token})
+        # Use api_response for success with token data
         return api_response(data=token_data, message="Login successful.")
     else:
-        # Invalid credentials
         logger.warning(f"Failed login attempt for username '{username}'.")
-        return api_response(message="Invalid username or password.", status_code=401, success=False) # Return 401 Unauthorized
+        # Use api_response for authentication failure
+        return api_response(message="Invalid username or password.", status_code=401, success=False)
 
-# --- Trip Planning Route ---
+# --- Trip Planning Route (Modified Return Type) ---
 
 @api_bp.route('/planning', methods=['POST'])
-@jwt_required() # Protected Route: Requires valid JWT
+@jwt_required() # Protected Route
 def plan_trip():
-    """Create Trip Plan Route"""
-    current_user_id = get_jwt_identity() # Get user ID from JWT payload (now a string)
+    """Create Trip Plan Route - Returns raw itinerary JSON on success"""
+    current_user_id = get_jwt_identity()
 
     json_data = request.get_json()
-    if not json_data: return api_response(message="No input JSON provided.", status_code=400, success=False)
+    # Return simple JSON error if no input
+    if not json_data: return jsonify({"error": "No input JSON provided."}), 400
 
     try: # Validate input via schema
-        # user_input will contain date objects after validation
         user_input = trip_plan_schema.load(json_data)
         logger.info(f"Planning request validated for user {current_user_id}.")
     except ValidationError as err:
-        return api_response(data=err.messages, message="Input validation failed.", status_code=400, success=False)
+        # Return simple JSON error for validation failure
+        return jsonify({"error": "Input validation failed.", "details": err.messages}), 400
 
     try:
-        # Call AI service to generate the plan
-        generated_itinerary = create_plan(user_input)
+        # Call AI service
+        raw_itinerary_string = create_plan(user_input)
+        logger.info(f"Raw AI response received for user {current_user_id}.")
 
-        # --- Prepare data for JSONB column ---
-        # Create a copy of the input to modify for JSON storage
+        # Parse JSON response from AI
+        parsed_itinerary = None
+        try:
+            cleaned_json_string = raw_itinerary_string.strip()
+            if cleaned_json_string.startswith("```json"):
+                cleaned_json_string = cleaned_json_string.removeprefix("```json").strip()
+            if cleaned_json_string.endswith("```"):
+                cleaned_json_string = cleaned_json_string.removesuffix("```").strip()
+            parsed_itinerary = json.loads(cleaned_json_string)
+            logger.info(f"Successfully parsed JSON itinerary for user {current_user_id}.")
+        except json.JSONDecodeError as json_err:
+            logger.error(f"Failed to parse JSON response from AI for user {current_user_id}. Error: {json_err}. Raw: {raw_itinerary_string[:500]}...")
+            # Return simple JSON error for parsing failure
+            return jsonify({"error": "Failed to process AI response format."}), 500
+
+        # --- Prepare data for DB (convert dates in copy for JSONB) ---
         request_input_for_db = user_input.copy()
-        # Convert date objects in the copy to ISO format strings
         if isinstance(request_input_for_db.get('start_date'), date):
             request_input_for_db['start_date'] = request_input_for_db['start_date'].isoformat()
         if isinstance(request_input_for_db.get('end_date'), date):
             request_input_for_db['end_date'] = request_input_for_db['end_date'].isoformat()
-        # ------------------------------------
+        # --------------------------------------------------------------
 
-        # Create and save history entry to the database
+        # Save to DB (save raw AI string)
         history_entry = TripPlanHistory(
             user_id=current_user_id,
-            request_input=request_input_for_db, # <-- FIX: Use the dictionary with string dates for JSONB
-            generated_itinerary=generated_itinerary,
+            request_input=request_input_for_db,
+            generated_itinerary=raw_itinerary_string, # Save original string
             destination_city=user_input.get('travel_destination'),
-            start_date=user_input.get('start_date'), # Use original date object for the Date column
-            end_date=user_input.get('end_date')      # Use original date object for the Date column
+            start_date=user_input.get('start_date'),
+            end_date=user_input.get('end_date')
         )
         db.session.add(history_entry)
-        db.session.commit() # Commit the transaction
+        db.session.commit()
         logger.info(f"Trip plan saved to history for user {current_user_id}, history ID {history_entry.id}.")
 
-        # Return the generated itinerary
-        return api_response(data={"itinerary": generated_itinerary}, message="Trip plan generated successfully.")
+        # --- SUCCESS RESPONSE: Return the parsed itinerary directly ---
+        # Flask automatically sets Content-Type to application/json
+        return jsonify(parsed_itinerary), 200
+        # ------------------------------------------------------------
 
-    except (ValueError, ConnectionError) as service_err: # Handle known errors from AI service
+    except (ValueError, ConnectionError) as service_err: # Handle AI service errors
         logger.error(f"AI Service Error (Planning) for user {current_user_id}: {service_err}")
         status_code = 503 if isinstance(service_err, ConnectionError) else 500
         error_msg = "AI planning service is currently unavailable." if isinstance(service_err, ConnectionError) else f"AI service configuration error."
-        return api_response(message=error_msg, status_code=status_code, success=False)
-    except Exception as e: # Handle other errors (like DB commit failure)
-        db.session.rollback() # Rollback DB session on error
+        # Return simple JSON error for service failure
+        return jsonify({"error": error_msg}), status_code
+    except Exception as e: # Handle other unexpected errors
+        db.session.rollback()
         logger.error(f"Unexpected Error (Planning) for user {current_user_id}: {e}", exc_info=True)
-        # Check if it's the specific JSON serialization error
-        if isinstance(e, TypeError) and "is not JSON serializable" in str(e):
-             return api_response(message="Internal error: Failed to save planning data due to serialization issue.", status_code=500, success=False)
-        # Generic internal error for other exceptions
-        return api_response(message="An internal error occurred during trip planning.", status_code=500, success=False)
+        # Return simple JSON error for internal server error
+        return jsonify({"error": "An internal error occurred during trip planning."}), 500
 
-# --- History Retrieval Route ---
+# --- History Retrieval Route (Keep using api_response for consistency here) ---
 
 @api_bp.route('/history', methods=['GET'])
-@jwt_required() # Protected Route: Requires valid JWT
+@jwt_required()
 def get_history():
     """Get User Trip History Route (Last 10)"""
     current_user_id = get_jwt_identity()
     try:
-        # Query latest 10 history entries for the user
         histories = TripPlanHistory.query.filter_by(user_id=current_user_id)\
                                      .order_by(TripPlanHistory.created_at.desc())\
                                      .limit(10).all()
-
-        # Serialize results using the schema
         result = trip_history_schema.dump(histories)
         logger.info(f"Retrieved {len(histories)} history entries for user {current_user_id}.")
+        # Use api_response for consistency in history list format
         return api_response(data=result, message="Trip history retrieved successfully.")
-
-    except Exception as e: # Handle potential DB or serialization errors
+    except Exception as e:
         logger.error(f"Error retrieving history for user {current_user_id}: {e}", exc_info=True)
+        # Use api_response for internal server error
         return api_response(message="Failed to retrieve trip history.", status_code=500, success=False)
