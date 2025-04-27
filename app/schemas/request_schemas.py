@@ -3,12 +3,15 @@ from marshmallow import Schema, fields, validate, validates_schema, ValidationEr
 
 class UserRegisterSchema(Schema):
     """User Registration Request Schema"""
-    username = fields.String(required=True, validate=validate.Length(min=3, max=80))
+    # Changed username to email, added full_name (optional)
+    full_name = fields.String(required=False, allow_none=True, validate=validate.Length(max=120))
+    email = fields.Email(required=True) # Use Email field for validation
     password = fields.String(required=True, validate=validate.Length(min=6))
 
 class UserLoginSchema(Schema):
     """User Login Request Schema"""
-    username = fields.String(required=True)
+    # Changed username to email
+    email = fields.Email(required=True)
     password = fields.String(required=True)
 
 class TripPlanRequestSchema(Schema):
@@ -33,3 +36,4 @@ class TripPlanRequestSchema(Schema):
             raise ValidationError("Provide 'start_date'/'end_date' or 'trip_duration'.", field_names=["start_date", "end_date", "trip_duration"])
         if start_date and end_date and start_date > end_date:
             raise ValidationError("End date cannot be before start date.", field_names=["end_date"])
+
