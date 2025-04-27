@@ -16,7 +16,7 @@ class User(db.Model):
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = db.Column(db.String(120), nullable=True) # User's full name, optional
     email = db.Column(db.String(120), unique=True, nullable=False, index=True) # User's email, must be unique and required, indexed
-    password_hash = db.Column(db.String(256), nullable=True) # Hashed password, nullable for OAuth users
+    password = db.Column(db.String(256), nullable=True) # Hashed password, nullable for OAuth users
     auth_provider = db.Column(db.String(50), nullable=False, default='local') # Authentication provider ('local', 'google', etc.)
     photo_url = db.Column(db.Text, nullable=True) # URL for user's profile picture
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
