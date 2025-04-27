@@ -27,16 +27,16 @@ class User(db.Model):
     def set_password(self, password):
         """Hashes the password if provided."""
         if password:
-            self.password_hash = generate_password_hash(password)
+            self.password = generate_password_hash(password)
         else:
-            self.password_hash = None # Set to None for OAuth users without local password
+            self.password = None # Set to None for OAuth users without local password
 
     def check_password(self, password):
         """Checks the provided password against the stored hash."""
         # Return False if there's no hash or no password provided
-        if not self.password_hash or not password:
+        if not self.password or not password:
             return False
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.password, password)
 
     # Repr method (Updated to use email)
     def __repr__(self):
