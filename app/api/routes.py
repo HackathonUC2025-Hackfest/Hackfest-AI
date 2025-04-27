@@ -13,7 +13,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from marshmallow import ValidationError # Validation Error Class
 import logging
 import json # Import json for parsing
-from datetime import date, datetime # Import datetime for logic if needed (limit check removed)
+from datetime import date, datetime, time # Import datetime and time for logic if needed (limit check removed)
 import uuid # <-- Import uuid module
 
 # Logger instance
@@ -26,6 +26,90 @@ trip_plan_schema = TripPlanRequestSchema()
 trip_history_schema = TripPlanHistorySchema(many=True) # Schema for lists of history objects
 auth_token_schema = AuthTokenSchema()
 
+# --- Authentication Routes ---
+
+@api_bp.route('/auth/register', methods=['POST'])
+def register_user():
+    """Register New User Route"""
+    json_data = request.get_json()
+    # Use api_response for input validation error
+    if not json_data: return api_response(message="No input data provided.", status_code=400, success=False)
+
+    try:
+        # Validate using the updated schema (expects email, password, optional full_name)
+        data = user_register_schema.load(json_data)
+    except ValidationError as err:
+        # Use api_response for schema validation error
+        return api_response(data=err.messages, message="Input validation failed.", status_code=400, success=False)
+
+    email = data['email']
+    # --- Check if user already exists using email ---
+    if User.query.filter_by(email=email).first():
+        # Use api_response for conflict error
+        return api_response(message="Email already registered.", status_code=409, success=False)
+    # ---------------------------------------------
+
+    # Create new User object with email and optional full_name
+    new_user = User(
+        email=email,
+        full_name=data.get('full_name') # Get full_name if provided
+        # auth_provider defaults to 'local' in model
+        # photo_url can be set later
+    )
+    # Set password (handles None password_hash if password is not set, useful for OAuth later)
+    new_user.set_password(data['password'])
+
+    try: # Attempt to save the new user to the database
+        db.session.add(new_user)
+        db.session.commit()
+        logger.info(f"User with email '{email}' registered successfully.")
+        # Use api_response for success message
+        return api_response(message="User created successfully.", status_code=201)
+    except Exception as e: # Handle potential database errors during commit
+        db.session.rollback() # Rollback transaction on error
+        logger.error(f"Database error during user registration: {e}", exc_info=True)
+        # Use api_response for internal server error
+        return api_response(message="Failed to register user due to a server error.", status_code=500, success=False)
+
+@api_bp.route('/auth/login', methods=['POST'])
+def login_user():
+    """Login User Route"""
+    json_data = request.get_json()
+    # Use api_response for input validation error
+    if not json_data: return api_response(message="No input data provided.", status_code=400, success=False)
+
+    try:
+        # Validate using updated schema (expects email, password)
+        data = user_login_schema.load(json_data)
+    except ValidationError as err:
+        # Use api_response for schema validation error
+        return api_response(data=err.messages, message="Input validation failed.", status_code=400, success=False)
+
+    email = data['email']
+    password = data['password']
+    # --- Find user by email ---
+    user = User.query.filter_by(email=email).first()
+    # -------------------------
+
+    # --- Verify password (check_password handles None hash) and auth provider ---
+    # Only allow login if user exists, password matches, and provider is 'local'
+    if user and user.auth_provider == 'local' and user.check_password(password):
+    # --------------------------------------------------------------------------
+        # --- Use UUID as string for JWT identity ---
+        # JWT standard typically expects string identity
+        access_token = create_access_token(identity=str(user.id))
+        # ------------------------------------------
+        logger.info(f"User with email '{email}' logged in successfully.")
+        # Serialize the token response using schema
+        token_data = auth_token_schema.dump({"access_token": access_token})
+        # Use api_response for success with token data
+        return api_response(data=token_data, message="Login successful.")
+    else:
+        # Invalid credentials or wrong auth provider
+        logger.warning(f"Failed login attempt for email '{email}'.")
+        # Use api_response for authentication failure
+        return api_response(message="Invalid email or password.", status_code=401, success=False)
+
 # --- Trip Planning Route ---
 
 @api_bp.route('/planning', methods=['POST'])
@@ -33,18 +117,23 @@ auth_token_schema = AuthTokenSchema()
 def plan_trip():
     """Create Trip Plan Route""" # Removed usage limit logic
     current_user_id_str = get_jwt_identity() # Get user ID (as string) from JWT payload
-    # Convert JWT identity string to UUID object
+    # --- Convert JWT identity string to UUID object ---
     try:
-        current_user_id = uuid.UUID(current_user_id_str)
+        # Convert the string from JWT back to a UUID object for database operations
+        current_user_id = uuid.UUID(current_user_id_str) # <-- FIX: Use uuid.UUID() instead of int()
     except ValueError:
+        # Handle case where the identity in the token is not a valid UUID format
         logger.error(f"Invalid UUID format in JWT identity: {current_user_id_str}")
         return jsonify({"error": "Invalid user identifier in token."}), 400
+    # -------------------------------------------------
 
-    # --- Get User Object using UUID (Optional but good practice) ---
+    # --- Get User Object using UUID ---
+    # Use the UUID object directly with query.get() or filter_by(id=...)
     user = User.query.get(current_user_id)
+    # ----------------------------------
     if not user:
+        # Should not happen if JWT is valid and user wasn't deleted
         return jsonify({"error": "User not found for provided token."}), 404
-    # -------------------------------------------------------------
 
     # --- REMOVED Usage Limit Check Logic ---
     # The logic checking user.is_premium and daily count is removed
@@ -92,7 +181,7 @@ def plan_trip():
 
         # Save to DB (save parsed AI response)
         history_entry = TripPlanHistory(
-            user_id=current_user_id, # Use UUID object for foreign key
+            user_id=current_user_id, # <-- Use UUID object for foreign key
             request_input=request_input_for_db,
             generated_itinerary=parsed_itinerary, # Store parsed Python dict/list
             destination_city=user_input.get('travel_destination'),
@@ -128,7 +217,7 @@ def get_history():
     current_user_id_str = get_jwt_identity() # Get user ID (as string)
     # --- Convert JWT identity string to UUID object ---
     try:
-        current_user_id = uuid.UUID(current_user_id_str)
+        current_user_id = uuid.UUID(current_user_id_str) # <-- FIX: Use uuid.UUID() instead of int()
     except ValueError:
         logger.error(f"Invalid UUID format in JWT identity for history: {current_user_id_str}")
         return api_response(message="Invalid user identifier in token.", status_code=400, success=False) # Use api_response for consistency
